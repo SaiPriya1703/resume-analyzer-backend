@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.Python
+
+# VSCode settings (optional)
+.vscode/
+
+# Mac system files
+.DS_Store
+
+# Log files
+*.log
+
+# Environment variables
+.env
+
+# SQLite database
+*.sqlite3
+*.db
+
+# PyMuPDF cache
+*.xref
+*.save
+
+# Test coverage files
+.coverage
+htmlcov/
+
+# PyInstaller build files
+build/
+dist/
+*.spec
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Render deploy config (if not using yet)
+render.yaml
