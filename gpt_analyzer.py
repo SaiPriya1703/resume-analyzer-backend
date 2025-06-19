@@ -1,14 +1,14 @@
 import openai
+from openai import OpenAI
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 import os
 import tempfile
-
 import docx2txt
-import PyPDF2  # or pdfplumber if you prefer
+import PyPDF2
 
 gpt_bp = Blueprint('gpt_bp', __name__)
-openai.api_key = os.getenv("OPENAI_API_KEY", "your-openai-api-key")  # use .env or Render secret
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def extract_text_from_file(file):
     ext = file.filename.split('.')[-1].lower()
@@ -54,11 +54,13 @@ def analyze():
     """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
         )
-        result = response.choices[0].message['content']
+        result = response.choices[0].message.content
         return jsonify({"result": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
