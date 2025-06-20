@@ -1,55 +1,60 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
+import jwt
+import datetime
+import os
 
-auth_bp = Blueprint('auth_bp', __name__)
+from database import users_collection  # Make sure this is correct
 
-DB = 'users.db'
+auth_bp = Blueprint("auth", __name__)
 
-def init_db():
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Secret key for encoding JWT (make sure this is securely stored in prod)
+SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key_here")
 
+
+# ✅ REGISTER ROUTE
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data['username']
-    password = generate_password_hash(data['password'])
+    name = data.get('name')  # ✅ Corrected
+    email = data.get('email')
+    password = data.get('password')
 
-    try:
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
-        conn.commit()
-        conn.close()
-        return jsonify({"msg": "User registered successfully."}), 201
-    except sqlite3.IntegrityError:
-        return jsonify({"msg": "Username already exists."}), 409
+    if not name or not email or not password:
+        return jsonify({"message": "All fields are required"}), 400
 
+    existing_user = users_collection.find_one({"email": email})
+    if existing_user:
+        return jsonify({"message": "User already exists"}), 409
+
+    hashed_pw = generate_password_hash(password)
+
+    users_collection.insert_one({
+        "name": name,
+        "email": email,
+        "password": hashed_pw
+    })
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+
+# ✅ LOGIN ROUTE
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data['username']
-    password = data['password']
+    email = data.get('email')
+    password = data.get('password')
 
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute("SELECT password FROM users WHERE username=?", (username,))
-    user = c.fetchone()
-    conn.close()
+    if not email or not password:
+        return jsonify({"message": "Email and password are required"}), 400
 
-    if user and check_password_hash(user[0], password):
-        token = create_access_token(identity=username)
-        return jsonify({"token": token}), 200
-    else:
-        return jsonify({"msg": "Invalid username or password"}), 401
+    user = users_collection.find_one({"email": email})
+    if not user or not check_password_hash(user['password'], password):
+        return jsonify({"message": "Invalid credentials"}), 401
+
+    token = jwt.encode({
+        "user_id": str(user['_id']),
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    }, SECRET_KEY, algorithm="HS256")
+
+    return jsonify({"token": token, "name": user["name"]}), 200
