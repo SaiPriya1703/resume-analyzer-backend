@@ -1,15 +1,15 @@
-import openai
-from openai import OpenAI
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
 import os
 import tempfile
+import requests
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
 import docx2txt
 import PyPDF2
 
 gpt_bp = Blueprint('gpt_bp', __name__)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# Extract text from uploaded resume
 def extract_text_from_file(file):
     ext = file.filename.split('.')[-1].lower()
 
@@ -27,6 +27,31 @@ def extract_text_from_file(file):
 
         return text, None
 
+# Call Groq API using Mixtral model
+def call_groq(prompt):
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "mixtral-8x7b-32768",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7
+    }
+
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json=data
+    )
+
+    if response.status_code != 200:
+        raise Exception(response.text)
+
+    return response.json()["choices"][0]["message"]["content"]
+
+# Resume Analysis Route
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
@@ -47,20 +72,15 @@ def analyze():
     Job Description:
     {jd}
 
-    1. Resume Match Score (%)
-    2. Missing Skills
-    3. Suggestions to Improve Resume
-    4. Custom Summary (2-3 lines)
+    1. Resume Match Score (0–100%)
+    2. Key Skills Present
+    3. Missing Skills
+    4. Suggestions to Improve Resume
+    5. Custom Summary (2-3 lines)
     """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        result = response.choices[0].message.content
+        result = call_groq(prompt)
         return jsonify({"result": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
