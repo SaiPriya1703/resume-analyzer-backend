@@ -51,37 +51,33 @@ def call_groq(prompt):
 
     return response.json()["choices"][0]["message"]["content"]
 
-# Resume Analysis Route
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
-    # ✅ LOGGING DEBUG DETAILS HERE
-    print("🛠️ DEBUG: Received Headers:", dict(request.headers))
-    print("🧾 DEBUG: Received Files:", request.files)
-    print("📝 DEBUG: Received Form:", request.form)
+    # 🌐 DEBUG: Log incoming data
+    print("🔍 DEBUG: Received Headers:", dict(request.headers))
+    print("📂 DEBUG: Received Files:", request.files)
+    print("📋 DEBUG: Received Form:", request.form)
 
-    # Validate input
+    # 🔍 Validation
     if 'resume' not in request.files:
-        print("❌ Resume missing in request.files")
         return jsonify({"message": "Resume file is required"}), 422
 
     if 'job_description' not in request.form:
-        print("❌ Job description missing in request.form")
         return jsonify({"message": "Job description is required"}), 422
 
     resume = request.files['resume']
-    job_description = request.form.get("job_description", "").strip()
+    job_description = request.form.get("job_description", "")
 
-    print("✅ Resume file name:", resume.filename)
-    print("✅ Job description:", job_description)
+    print("📄 Resume Filename:", resume.filename)
+    print("📝 Job Description:", job_description)
 
-    # Extract text
+    # Extract resume text
     resume_text, err = extract_text_from_file(resume)
     if err:
-        print("❌ Failed to extract resume text:", err)
         return jsonify({"error": err}), 400
 
-    # Prompt for Groq
+    # Prompt for LLM
     prompt = f"""
     Resume:
     {resume_text}
@@ -96,10 +92,9 @@ def analyze():
     5. Custom Summary (2-3 lines)
     """
 
-    # Call Groq API
     try:
         result = call_groq(prompt)
         return jsonify({"result": result})
     except Exception as e:
-        print("❌ Groq API error:", str(e))
         return jsonify({"error": str(e)}), 500
+
