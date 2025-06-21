@@ -21,5 +21,5 @@ def home():
     return {'message': 'Resume Analyzer Backend is Live 🎯'}
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # Use Render's port or default to 5000 locally
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 10000))  # Render provides this
+    app.run(host='0.0.0.0', port=port, debug=True)
