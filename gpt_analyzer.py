@@ -55,22 +55,32 @@ def call_groq(prompt):
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
-    if 'file' not in request.files or 'job_description' not in request.form:
-        return jsonify({"error": "Missing file or job_description"}), 400
+    # 🔍 Validation: check if both fields are provided
+    if 'resume' not in request.files:
+        return jsonify({"message": "Resume file is required"}), 422
 
-    file = request.files['file']
-    jd = request.form['job_description']
+    if 'job_description' not in request.form:
+        return jsonify({"message": "Job description is required"}), 422
 
-    resume_text, err = extract_text_from_file(file)
+    resume = request.files['resume']
+    job_description = request.form.get("job_description", "")
+
+    # Optional: Logging for debugging
+    print("Received resume file:", resume.filename)
+    print("Received job description:", job_description)
+
+    # 🔍 Extract text from resume file
+    resume_text, err = extract_text_from_file(resume)
     if err:
         return jsonify({"error": err}), 400
 
+    # 📜 Generate prompt
     prompt = f"""
     Resume:
     {resume_text}
 
     Job Description:
-    {jd}
+    {job_description}
 
     1. Resume Match Score (0–100%)
     2. Key Skills Present
@@ -79,6 +89,7 @@ def analyze():
     5. Custom Summary (2-3 lines)
     """
 
+    # 🧠 Call Groq API
     try:
         result = call_groq(prompt)
         return jsonify({"result": result})
