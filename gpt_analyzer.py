@@ -55,17 +55,14 @@ def call_groq(prompt):
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
-    # ✅ Add debugging logs to trace input
-    print("🧾 Received request to /analyze")
-    print("📁 request.files keys:", list(request.files.keys()))
-    print("📝 request.form keys:", list(request.form.keys()))
+    # 🔍 Log incoming form data for debugging
+    print("Received files:", request.files)
+    print("Received form:", request.form)
 
     if 'resume' not in request.files:
-        print("❌ Resume missing in request.files")
         return jsonify({"message": "Resume file is required"}), 422
 
     if 'job_description' not in request.form:
-        print("❌ Job description missing in request.form")
         return jsonify({"message": "Job description is required"}), 422
 
     resume = request.files['resume']
