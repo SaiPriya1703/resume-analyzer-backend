@@ -55,26 +55,31 @@ def call_groq(prompt):
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
-    # 🔍 Validation: check if both fields are provided
-    if 'resume' not in request.files:
-        return jsonify({"message": "Resume file is required"}), 422
+    print("🔍 Incoming request to /analyze")
 
-    if 'job_description' not in request.form:
-        return jsonify({"message": "Job description is required"}), 422
+    # Validation for resume
+    if 'resume' not in request.files or request.files['resume'].filename == "":
+        print("❌ Resume not found or filename is empty.")
+        return jsonify({"message": "Resume file is missing or invalid"}), 422
+
+    # Validation for job description
+    if 'job_description' not in request.form or request.form.get("job_description").strip() == "":
+        print("❌ Job description is missing or blank.")
+        return jsonify({"message": "Job description is missing or blank"}), 422
 
     resume = request.files['resume']
-    job_description = request.form.get("job_description", "")
+    job_description = request.form.get("job_description", "").strip()
 
-    # Optional: Logging for debugging
-    print("Received resume file:", resume.filename)
-    print("Received job description:", job_description)
+    print("✅ Resume file name:", resume.filename)
+    print("✅ Job description:", job_description)
 
-    # 🔍 Extract text from resume file
+    # Extract text
     resume_text, err = extract_text_from_file(resume)
     if err:
+        print("❌ Failed to extract resume text:", err)
         return jsonify({"error": err}), 400
 
-    # 📜 Generate prompt
+    # Prompt for Groq
     prompt = f"""
     Resume:
     {resume_text}
@@ -89,9 +94,10 @@ def analyze():
     5. Custom Summary (2-3 lines)
     """
 
-    # 🧠 Call Groq API
+    # Call Groq API
     try:
         result = call_groq(prompt)
         return jsonify({"result": result})
     except Exception as e:
+        print("❌ Groq API error:", str(e))
         return jsonify({"error": str(e)}), 500
