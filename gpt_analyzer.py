@@ -53,6 +53,9 @@ def call_groq(prompt):
 
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
+    import re
+    from werkzeug.datastructures import ImmutableMultiDict
+
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
     print("📂 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
     print("📋 DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
@@ -60,13 +63,8 @@ def analyze():
     resume = request.files.get('resume', None)
     job_description = request.form.get('job_description', '')
 
-    print("✅ Extracted resume:", resume.filename if resume else None, flush=True)
-    print("✅ Extracted job_description:", job_description[:100], flush=True)
-
-    if not resume:
-        return jsonify({"message": "Resume file is missing"}), 422
-    if not job_description:
-        return jsonify({"message": "Job description is missing"}), 422
+    if not resume or not job_description:
+        return jsonify({"message": "Resume or Job description is missing"}), 422
 
     resume_text, err = extract_text_from_file(resume)
     if err:
@@ -83,13 +81,42 @@ def analyze():
     2. Key Skills Present
     3. Missing Skills
     4. Suggestions to Improve Resume
-    5. Custom Summary (2–3 lines)
+    5. Custom Summary (2-3 lines)
     """
 
     try:
-        result = call_groq(prompt)
-        return jsonify({"result": result})
+        gpt_result = call_groq(prompt)
+        print("📨 GPT Output:", gpt_result[:200], flush=True)
+
+        # Parse the GPT response
+        score_match = re.search(r"Resume Match Score:\s*(\d+)%", gpt_result)
+        skills_match = re.search(r"\*\*Key Skills Present:\*\*\n((?:\d+\..*\n)+)", gpt_result)
+        missing_match = re.search(r"\*\*Missing Skills:\*\*\n((?:\d+\..*\n)+)", gpt_result)
+        suggestions_match = re.search(r"\*\*Suggestions to Improve Resume:\*\*\n((?:\d+\..*\n)+)", gpt_result)
+        summary_match = re.search(r"\*\*Custom Summary:\*\*\n(.+)", gpt_result)
+
+        score = int(score_match.group(1)) if score_match else 0
+        skills = [line.strip().split('. ', 1)[1] for line in skills_match.group(1).strip().splitlines()] if skills_match else []
+        missing_skills = [line.strip().split('. ', 1)[1] for line in missing_match.group(1).strip().splitlines()] if missing_match else []
+        suggestions = [line.strip().split('. ', 1)[1] for line in suggestions_match.group(1).strip().splitlines()] if suggestions_match else []
+        summary = summary_match.group(1).strip() if summary_match else ""
+
+        print("✅ Parsed Score:", score, flush=True)
+        print("✅ Extracted Skills:", skills, flush=True)
+        print("✅ Missing Skills:", missing_skills, flush=True)
+        print("✅ Suggestions:", suggestions, flush=True)
+        print("✅ Summary:", summary[:100], flush=True)
+
+        return jsonify({
+            "score": score,
+            "skills": skills,
+            "missing_skills": missing_skills,
+            "suggestions": suggestions,
+            "summary": summary
+        })
+
     except Exception as e:
-        print("❌ GPT Error:", e, flush=True)
+        print("❌ Error in GPT parsing:", e, flush=True)
         return jsonify({"error": str(e)}), 500
+
 
