@@ -3,7 +3,6 @@ import os
 import tempfile
 import requests
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
 import docx2txt
 import PyPDF2
 
@@ -52,53 +51,22 @@ def call_groq(prompt):
 
     return response.json()["choices"][0]["message"]["content"]
 
-# 🔍 DEBUG-Enhanced Analyze Route
+# 🔍 DEBUG-ONLY Analyze Route (no GPT call, just data inspection)
 @gpt_bp.route('/analyze', methods=['POST'])
-@jwt_required()
 def analyze():
-    from werkzeug.datastructures import ImmutableMultiDict
-
-    # DEBUG: Log incoming request headers, form, and files
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
     print("📂 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
     print("📋 DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
 
-    # Extract and log
     resume = request.files.get('resume', None)
     job_description = request.form.get('job_description', '')
 
     print("✅ Extracted resume:", resume.filename if resume else None, flush=True)
-    print("✅ Extracted job_description:", job_description[:100], flush=True)  # Log only first 100 chars
+    print("✅ Extracted job_description:", job_description[:100], flush=True)  # Only show first 100 characters
 
-    # Handle missing inputs
     if not resume:
         return jsonify({"message": "Resume file is missing"}), 422
     if not job_description:
         return jsonify({"message": "Job description is missing"}), 422
 
-    # Extract text from file
-    resume_text, err = extract_text_from_file(resume)
-    if err:
-        return jsonify({"error": err}), 400
-
-    # Build prompt for Groq
-    prompt = f"""
-    Resume:
-    {resume_text}
-
-    Job Description:
-    {job_description}
-
-    1. Resume Match Score (0–100%)
-    2. Key Skills Present
-    3. Missing Skills
-    4. Suggestions to Improve Resume
-    5. Custom Summary (2-3 lines)
-    """
-
-    try:
-        result = call_groq(prompt)
-        return jsonify({"result": result})
-    except Exception as e:
-        print("❌ GPT Error:", e, flush=True)
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"message": "Data received properly!"}), 200
