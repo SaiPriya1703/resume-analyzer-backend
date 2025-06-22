@@ -55,30 +55,28 @@ def call_groq(prompt):
 @gpt_bp.route('/analyze', methods=['POST'])
 @jwt_required()
 def analyze():
-    # 🌐 DEBUG: Log incoming data
-    print("🔍 DEBUG: Received Headers:", dict(request.headers))
-    print("📂 DEBUG: Received Files:", request.files)
-    print("📋 DEBUG: Received Form:", request.form)
+    print("🚨 DEBUG: HEADERS =>", dict(request.headers))
+    print("📂 DEBUG: Received Files =>", request.files)
+    print("📋 DEBUG: Received Form =>", request.form)
 
-    # 🔍 Validation
     if 'resume' not in request.files:
+        print("❌ Resume not found")
         return jsonify({"message": "Resume file is required"}), 422
 
     if 'job_description' not in request.form:
+        print("❌ Job description not found")
         return jsonify({"message": "Job description is required"}), 422
 
     resume = request.files['resume']
     job_description = request.form.get("job_description", "")
 
-    print("📄 Resume Filename:", resume.filename)
-    print("📝 Job Description:", job_description)
+    print("✅ Resume filename:", resume.filename)
+    print("✅ Job description:", job_description)
 
-    # Extract resume text
     resume_text, err = extract_text_from_file(resume)
     if err:
         return jsonify({"error": err}), 400
 
-    # Prompt for LLM
     prompt = f"""
     Resume:
     {resume_text}
@@ -97,5 +95,6 @@ def analyze():
         result = call_groq(prompt)
         return jsonify({"result": result})
     except Exception as e:
+        print("❌ GPT Error:", e)
         return jsonify({"error": str(e)}), 500
 
