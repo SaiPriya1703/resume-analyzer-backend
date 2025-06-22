@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager
 from auth import auth_bp
 from gpt_analyzer import gpt_bp
 import os
-
+import sys
 app = Flask(__name__)
 CORS(app)
 
@@ -21,5 +21,5 @@ def home():
     return {'message': 'Resume Analyzer Backend is Live 🎯'}
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))  # Render provides this
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)), debug=True)
+    sys.stdout.flush()
