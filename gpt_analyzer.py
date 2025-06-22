@@ -51,7 +51,6 @@ def call_groq(prompt):
 
     return response.json()["choices"][0]["message"]["content"]
 
-# 🔍 DEBUG-ONLY Analyze Route (no GPT call, just data inspection)
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
@@ -62,11 +61,35 @@ def analyze():
     job_description = request.form.get('job_description', '')
 
     print("✅ Extracted resume:", resume.filename if resume else None, flush=True)
-    print("✅ Extracted job_description:", job_description[:100], flush=True)  # Only show first 100 characters
+    print("✅ Extracted job_description:", job_description[:100], flush=True)
 
     if not resume:
         return jsonify({"message": "Resume file is missing"}), 422
     if not job_description:
         return jsonify({"message": "Job description is missing"}), 422
 
-    return jsonify({"message": "Data received properly!"}), 200
+    resume_text, err = extract_text_from_file(resume)
+    if err:
+        return jsonify({"error": err}), 400
+
+    prompt = f"""
+    Resume:
+    {resume_text}
+
+    Job Description:
+    {job_description}
+
+    1. Resume Match Score (0–100%)
+    2. Key Skills Present
+    3. Missing Skills
+    4. Suggestions to Improve Resume
+    5. Custom Summary (2–3 lines)
+    """
+
+    try:
+        result = call_groq(prompt)
+        return jsonify({"result": result})
+    except Exception as e:
+        print("❌ GPT Error:", e, flush=True)
+        return jsonify({"error": str(e)}), 500
+
