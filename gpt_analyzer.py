@@ -5,7 +5,7 @@ import requests
 from flask import Blueprint, request, jsonify
 import docx2txt
 import PyPDF2
-
+import re
 gpt_bp = Blueprint('gpt_bp', __name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -54,7 +54,6 @@ def call_groq(prompt):
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
     import re
-    from werkzeug.datastructures import ImmutableMultiDict
 
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
     print("📂 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
@@ -86,14 +85,14 @@ def analyze():
 
     try:
         gpt_result = call_groq(prompt)
-        print("📨 GPT Output:", gpt_result[:200], flush=True)
+        print("📨 GPT Output:", gpt_result[:300], flush=True)
 
-        # Parse the GPT response
-        score_match = re.search(r"Resume Match Score:\s*(\d+)%", gpt_result)
-        skills_match = re.search(r"\*\*Key Skills Present:\*\*\n((?:\d+\..*\n)+)", gpt_result)
-        missing_match = re.search(r"\*\*Missing Skills:\*\*\n((?:\d+\..*\n)+)", gpt_result)
-        suggestions_match = re.search(r"\*\*Suggestions to Improve Resume:\*\*\n((?:\d+\..*\n)+)", gpt_result)
-        summary_match = re.search(r"\*\*Custom Summary:\*\*\n(.+)", gpt_result)
+        # 🛠 Updated forgiving regex patterns
+        score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
+        skills_match = re.search(r"Key Skills Present[:\-]?\s*\n((?:\d+\..*\n)+)", gpt_result, re.IGNORECASE)
+        missing_match = re.search(r"Missing Skills[:\-]?\s*\n((?:\d+\..*\n)+)", gpt_result, re.IGNORECASE)
+        suggestions_match = re.search(r"Suggestions to Improve Resume[:\-]?\s*\n((?:\d+\..*\n)+)", gpt_result, re.IGNORECASE)
+        summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
         score = int(score_match.group(1)) if score_match else 0
         skills = [line.strip().split('. ', 1)[1] for line in skills_match.group(1).strip().splitlines()] if skills_match else []
@@ -118,5 +117,3 @@ def analyze():
     except Exception as e:
         print("❌ Error in GPT parsing:", e, flush=True)
         return jsonify({"error": str(e)}), 500
-
-
