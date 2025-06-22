@@ -1,12 +1,10 @@
-# Debug redeploy trigger
 import os
 import tempfile
 import requests
-from flask import Blueprint, request, jsonify
 import docx2txt
 import PyPDF2
 import re
-
+from flask import Blueprint, request, jsonify
 
 gpt_bp = Blueprint('gpt_bp', __name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -14,10 +12,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Extract text from uploaded resume
 def extract_text_from_file(file):
     ext = file.filename.split('.')[-1].lower()
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp:
         file.save(tmp.name)
-
         if ext == 'pdf':
             with open(tmp.name, 'rb') as f:
                 reader = PyPDF2.PdfReader(f)
@@ -26,7 +22,6 @@ def extract_text_from_file(file):
             text = docx2txt.process(tmp.name)
         else:
             return None, f"Unsupported file format: {ext}"
-
         return text, None
 
 # Call Groq API using Mixtral model
@@ -35,22 +30,18 @@ def call_groq(prompt):
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
-
     data = {
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7
     }
-
     response = requests.post(
         "https://api.groq.com/openai/v1/chat/completions",
         headers=headers,
         json=data
     )
-
     if response.status_code != 200:
         raise Exception(response.text)
-
     return response.json()["choices"][0]["message"]["content"]
 
 @gpt_bp.route('/analyze', methods=['POST'])
@@ -59,7 +50,7 @@ def analyze():
     print("📂 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
     print("📋 DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
 
-    resume = request.files.get('resume', None)
+    resume = request.files.get('resume')
     job_description = request.form.get('job_description', '')
 
     if not resume or not job_description:
@@ -87,17 +78,17 @@ def analyze():
         gpt_result = call_groq(prompt)
         print("📨 GPT Output:", gpt_result[:300], flush=True)
 
-        # Flexible GPT parsing to support dashes, bullets, numbers, or categories
+        # --- Flexible parsing ---
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
         summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        # For skills, suggestions etc. – match any lines starting with '-', '*', or digit + dot
+        # Extract bullet lists
         def extract_bullets(section_title):
-            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*\n|(?:\d+\..*\n))+)",
-            match = re.search(pattern[0], gpt_result, re.IGNORECASE)
+            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n)+)"
+            match = re.search(pattern, gpt_result, re.IGNORECASE)
             if match:
                 lines = match.group(1).strip().splitlines()
-                return [re.sub(r"^[-*•\d\. ]+", "", line).strip() for line in lines]
+                return [re.sub(r"^[-*•]\s*", "", line).strip() for line in lines]
             return []
 
         skills = extract_bullets("Key Skills Present")
@@ -106,6 +97,7 @@ def analyze():
         score = int(score_match.group(1)) if score_match else 0
         summary = summary_match.group(1).strip() if summary_match else ""
 
+        # --- Logs ---
         print("✅ Parsed Score:", score, flush=True)
         print("✅ Extracted Skills:", skills, flush=True)
         print("✅ Missing Skills:", missing_skills, flush=True)
