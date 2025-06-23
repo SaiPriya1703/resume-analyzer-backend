@@ -5,15 +5,18 @@ from auth import auth_bp
 from gpt_analyzer import gpt_bp
 import os
 import sys
+
 app = Flask(__name__)
-CORS(app)
+
+# ✅ Proper CORS setup to allow frontend (localhost:3000 or any)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # JWT Config
 app.config['JWT_SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY", "your-secret-key")
 jwt = JWTManager(app)
 
 # Blueprints
-app.register_blueprint(auth_bp)
+app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(gpt_bp)
 
 @app.route('/')

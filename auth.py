@@ -61,7 +61,7 @@ def login():
 
 
 # ✅ RESET PASSWORD ROUTE
-@auth_bp.route('/reset-password', methods=['POST'])
+@auth_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
 def reset_password():
     data = request.get_json()
     email = data.get('email')
