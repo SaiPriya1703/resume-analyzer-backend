@@ -24,7 +24,7 @@ def extract_text_from_file(file):
             return None, f"Unsupported file format: {ext}"
         return text, None
 
-# Call Groq API using Mixtral model
+# Call Groq API
 def call_groq(prompt):
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -76,13 +76,13 @@ def analyze():
 
     try:
         gpt_result = call_groq(prompt)
-        print("📨 GPT Output:", gpt_result[:300], flush=True)
+        print("📨 GPT Output FULL:\n", gpt_result, flush=True)
 
-        # --- Flexible Parsing ---
+        # --- Parsing Logic ---
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
         summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        # --- Extract bullet list sections ---
+        # Handle bullets and category: value format
         def extract_bullets(section_title):
             pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n|(?:\d+\..*?\n))+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
@@ -93,11 +93,9 @@ def analyze():
             for line in lines:
                 line = re.sub(r"^[-*•\d\.]+\s*", "", line).strip()
                 if ":" in line:
-                    key, values = line.split(":", 1)
-                    for item in values.split(","):
-                        cleaned = item.strip()
-                        if cleaned:
-                            items.append(cleaned)
+                    _, values = line.split(":", 1)
+                    values = [v.strip() for v in values.split(",") if v.strip()]
+                    items.extend(values)
                 else:
                     items.append(line)
             return items
