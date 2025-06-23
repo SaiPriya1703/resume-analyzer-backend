@@ -44,6 +44,7 @@ def call_groq(prompt):
         raise Exception(response.text)
     return response.json()["choices"][0]["message"]["content"]
 
+# Route: /analyze
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
@@ -82,34 +83,33 @@ def analyze():
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
         summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        # Extract bullet lists
+        # Extract bullet list sections
         def extract_bullets(section_title):
             pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n?)+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
             if not match:
                 return []
-
             lines = match.group(1).strip().splitlines()
-            result = []
-
+            items = []
             for line in lines:
                 line = re.sub(r"^[-*•]\s*", "", line).strip()
                 if ":" in line:
-                    _, values = line.split(":", 1)
-                    result.extend([item.strip() for item in values.split(",") if item.strip()])
+                    key, values = line.split(":", 1)
+                    for item in values.split(","):
+                        cleaned = item.strip()
+                        if cleaned:
+                            items.append(cleaned)
                 else:
-                    result.append(line)
+                    items.append(line)
+            return items
 
-            return result
-
-        # Final extracted fields
         skills = extract_bullets("Key Skills Present")
         missing_skills = extract_bullets("Missing Skills")
         suggestions = extract_bullets("Suggestions to Improve Resume")
         score = int(score_match.group(1)) if score_match else 0
         summary = summary_match.group(1).strip() if summary_match else ""
 
-        # Logs
+        # --- Logs ---
         print("✅ Parsed Score:", score, flush=True)
         print("✅ Extracted Skills:", skills, flush=True)
         print("✅ Missing Skills:", missing_skills, flush=True)
