@@ -1,25 +1,22 @@
-from flask_bcrypt import Bcrypt
 from flask import Blueprint, request, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
 import jwt
 import datetime
 import os
 
-from database import users_collection  # Make sure this is correct
+from database import users_collection
 
 auth_bp = Blueprint("auth", __name__)
-
 bcrypt = Bcrypt()
 
-# Secret key for encoding JWT (make sure this is securely stored in prod)
+# Secret key for encoding JWT (make sure this is securely stored in production)
 SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key_here")
-
 
 # ✅ REGISTER ROUTE
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    name = data.get('name')  # ✅ Corrected
+    name = data.get('name')
     email = data.get('email')
     password = data.get('password')
 
@@ -30,7 +27,7 @@ def register():
     if existing_user:
         return jsonify({"message": "User already exists"}), 409
 
-    hashed_pw = generate_password_hash(password)
+    hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
 
     users_collection.insert_one({
         "name": name,
@@ -39,7 +36,6 @@ def register():
     })
 
     return jsonify({"message": "User registered successfully"}), 201
-
 
 # ✅ LOGIN ROUTE
 @auth_bp.route('/login', methods=['POST'])
@@ -52,7 +48,7 @@ def login():
         return jsonify({"message": "Email and password are required"}), 400
 
     user = users_collection.find_one({"email": email})
-    if not user or not check_password_hash(user['password'], password):
+    if not user or not bcrypt.check_password_hash(user['password'], password):
         return jsonify({"message": "Invalid credentials"}), 401
 
     token = jwt.encode({
@@ -62,7 +58,7 @@ def login():
 
     return jsonify({"token": token, "name": user["name"]}), 200
 
-
+# ✅ PASSWORD RESET ROUTE
 @auth_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
 def reset_password():
     if request.method == 'OPTIONS':

@@ -7,7 +7,7 @@ import os
 import sys
 
 app = Flask(__name__)
-
+bcrypt.init_app(app)
 # ✅ Proper CORS config for frontend (localhost or deployed)
 CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], supports_credentials=True)
 
