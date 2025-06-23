@@ -78,11 +78,10 @@ def analyze():
         gpt_result = call_groq(prompt)
         print("📨 GPT Output FULL:\n", gpt_result, flush=True)
 
-        # --- Parsing Logic ---
+        # --- Parsing ---
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
         summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        # Handle bullets and category: value format
         def extract_bullets(section_title):
             pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n|(?:\d+\..*?\n))+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
@@ -91,6 +90,7 @@ def analyze():
             lines = match.group(1).strip().splitlines()
             items = []
             for line in lines:
+                # Fix: Strip both dash and numbered bullets like "1. "
                 line = re.sub(r"^[-*•\d\.]+\s*", "", line).strip()
                 if ":" in line:
                     _, values = line.split(":", 1)
@@ -106,7 +106,6 @@ def analyze():
         score = int(score_match.group(1)) if score_match else 0
         summary = summary_match.group(1).strip() if summary_match else ""
 
-        # --- Logs ---
         print("✅ Parsed Score:", score, flush=True)
         print("✅ Extracted Skills:", skills, flush=True)
         print("✅ Missing Skills:", missing_skills, flush=True)
