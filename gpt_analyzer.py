@@ -3,11 +3,15 @@ import tempfile
 import requests
 import docx2txt
 import PyPDF2
+import json
+import re
 from flask import Blueprint, request, jsonify
 
+# Blueprint setup
 gpt_bp = Blueprint('gpt_bp', __name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# Extract text from uploaded resume
 def extract_text_from_file(file):
     ext = file.filename.split('.')[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp:
@@ -22,6 +26,7 @@ def extract_text_from_file(file):
             return None, f"Unsupported file format: {ext}"
         return text, None
 
+# Call Groq API using Mixtral model
 def call_groq(prompt):
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -30,20 +35,22 @@ def call_groq(prompt):
     data = {
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3
+        "temperature": 0.7
     }
-    response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json=data
+    )
     if response.status_code != 200:
         raise Exception(response.text)
     return response.json()["choices"][0]["message"]["content"]
 
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
-    import json
-
-    print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
-    print("📂 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
-    print("📋 DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
+    print("\U0001F6A8 DEBUG: HEADERS =>", dict(request.headers), flush=True)
+    print("\ud83d\udcc2 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
+    print("\ud83d\udccb DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
 
     resume = request.files.get('resume')
     job_description = request.form.get('job_description', '')
@@ -55,30 +62,22 @@ def analyze():
     if err:
         return jsonify({"error": err}), 400
 
-    # ✅ Structured prompt requesting JSON
     prompt = f"""
-You are a resume screening assistant.
+    Resume:
+    {resume_text}
 
-Analyze the following resume and job description, then return ONLY the following JSON structure:
+    Job Description:
+    {job_description}
 
-{{
-  "score": 0-100, 
-  "skills": ["Skill 1", "Skill 2", ...],
-  "missing_skills": ["Skill A", "Skill B", ...],
-  "suggestions": ["Tip 1", "Tip 2", ...],
-  "summary": "2-3 line summary"
-}}
-
-Resume:
-\"\"\"
-{resume_text}
-\"\"\"
-
-Job Description:
-\"\"\"
-{job_description}
-\"\"\"
-"""
+    Provide response only as raw JSON without markdown formatting:
+    {{
+      "score": number (0-100),
+      "skills": ["skill1", "skill2", ...],
+      "missing_skills": ["skill1", "skill2", ...],
+      "suggestions": ["tip1", "tip2", ...],
+      "summary": "2-3 sentence summary"
+    }}
+    """
 
     try:
         gpt_response = call_groq(prompt)
@@ -87,8 +86,10 @@ Job Description:
         print(gpt_response)
         print("\n===== END =====\n")
 
-        # ✅ Parse GPT JSON safely
-        result = json.loads(gpt_response)
+        # Remove ```json and ``` wrappers if present
+        cleaned_json = re.sub(r"^```json|```$", "", gpt_response.strip(), flags=re.MULTILINE).strip()
+
+        result = json.loads(cleaned_json)
 
         return jsonify({
             "score": result.get("score", 0),
@@ -99,5 +100,5 @@ Job Description:
         })
 
     except Exception as e:
-        print("❌ Error parsing GPT JSON:", e, flush=True)
+        print("\u274c Error parsing GPT JSON:", e, flush=True)
         return jsonify({"error": str(e)}), 500
