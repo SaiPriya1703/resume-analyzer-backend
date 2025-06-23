@@ -9,7 +9,8 @@ import sys
 app = Flask(__name__)
 
 # ✅ Proper CORS config for frontend (localhost or deployed)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], supports_credentials=True)
+
 
 # ✅ JSON support (important for Content-Type: application/json)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True

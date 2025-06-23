@@ -1,3 +1,4 @@
+from flask_bcrypt import Bcrypt
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
@@ -7,6 +8,8 @@ import os
 from database import users_collection  # Make sure this is correct
 
 auth_bp = Blueprint("auth", __name__)
+
+bcrypt = Bcrypt()
 
 # Secret key for encoding JWT (make sure this is securely stored in prod)
 SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key_here")
