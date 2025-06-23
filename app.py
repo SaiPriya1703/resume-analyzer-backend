@@ -8,14 +8,18 @@ import sys
 
 app = Flask(__name__)
 
-# ✅ Proper CORS setup to allow frontend (localhost:3000 or any)
+# ✅ Proper CORS config for frontend (localhost or deployed)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-# JWT Config
+# ✅ JSON support (important for Content-Type: application/json)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+app.config['JSON_SORT_KEYS'] = False
+
+# ✅ JWT config
 app.config['JWT_SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY", "your-secret-key")
 jwt = JWTManager(app)
 
-# Blueprints
+# ✅ Register Blueprints
 app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(gpt_bp)
 

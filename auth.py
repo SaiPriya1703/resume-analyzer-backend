@@ -60,9 +60,11 @@ def login():
     return jsonify({"token": token, "name": user["name"]}), 200
 
 
-# ✅ RESET PASSWORD ROUTE
 @auth_bp.route('/reset-password', methods=['POST', 'OPTIONS'])
 def reset_password():
+    if request.method == 'OPTIONS':
+        return jsonify({'message': 'CORS preflight'}), 200
+
     data = request.get_json()
     email = data.get('email')
     new_password = data.get('new_password')
@@ -74,6 +76,6 @@ def reset_password():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    hashed = generate_password_hash(new_password)
+    hashed = bcrypt.generate_password_hash(new_password).decode("utf-8")
     users_collection.update_one({"email": email}, {"$set": {"password": hashed}})
     return jsonify({"message": "Password reset successful"}), 200
