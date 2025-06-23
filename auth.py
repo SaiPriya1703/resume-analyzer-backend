@@ -58,3 +58,22 @@ def login():
     }, SECRET_KEY, algorithm="HS256")
 
     return jsonify({"token": token, "name": user["name"]}), 200
+
+
+# ✅ RESET PASSWORD ROUTE
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json()
+    email = data.get('email')
+    new_password = data.get('new_password')
+
+    if not email or not new_password:
+        return jsonify({"error": "Email and new password required"}), 400
+
+    user = users_collection.find_one({"email": email})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    hashed = generate_password_hash(new_password)
+    users_collection.update_one({"email": email}, {"$set": {"password": hashed}})
+    return jsonify({"message": "Password reset successful"}), 200
