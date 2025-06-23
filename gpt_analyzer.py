@@ -86,10 +86,23 @@ def analyze():
         def extract_bullets(section_title):
             pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n)+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
-            if match:
-                lines = match.group(1).strip().splitlines()
-                return [re.sub(r"^[-*•]\s*", "", line).strip() for line in lines]
-            return []
+            if not match:
+                return []
+            
+            lines = match.group(1).strip().splitlines()
+            extracted = []
+            for line in lines:
+                line = re.sub(r"^[-*•]\s*", "", line).strip()  # remove bullet
+                if ":" in line:
+                    key, values = line.split(":", 1)
+                    for item in values.split(","):
+                        cleaned = item.strip()
+                        if cleaned:
+                            extracted.append(cleaned)
+                else:
+                    extracted.append(line)
+        return extracted
+
 
         skills = extract_bullets("Key Skills Present")
         missing_skills = extract_bullets("Missing Skills")
