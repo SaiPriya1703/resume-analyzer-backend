@@ -44,7 +44,6 @@ def call_groq(prompt):
         raise Exception(response.text)
     return response.json()["choices"][0]["message"]["content"]
 
-# Route: /analyze
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
     print("🚨 DEBUG: HEADERS =>", dict(request.headers), flush=True)
@@ -79,20 +78,20 @@ def analyze():
         gpt_result = call_groq(prompt)
         print("📨 GPT Output:", gpt_result[:300], flush=True)
 
-        # --- Flexible parsing ---
+        # --- Flexible Parsing ---
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
         summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        # Extract bullet list sections
+        # --- Extract bullet list sections ---
         def extract_bullets(section_title):
-            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n?)+)"
+            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n|(?:\d+\..*?\n))+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
             if not match:
                 return []
             lines = match.group(1).strip().splitlines()
             items = []
             for line in lines:
-                line = re.sub(r"^[-*•]\s*", "", line).strip()
+                line = re.sub(r"^[-*•\d\.]+\s*", "", line).strip()
                 if ":" in line:
                     key, values = line.split(":", 1)
                     for item in values.split(","):
