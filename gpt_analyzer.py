@@ -76,7 +76,10 @@ def analyze():
 
     try:
         gpt_result = call_groq(prompt)
-        print("📨 GPT Output FULL:\n", gpt_result, flush=True)
+        print("\n===== FULL GPT OUTPUT =====\n", flush=True)
+        print(gpt_result, flush=True)
+        print("\n===== END =====\n", flush=True)
+        print("📨 GPT Output:", gpt_result[:300], flush=True)
 
         # --- Parsing ---
         score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
