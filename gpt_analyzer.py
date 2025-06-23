@@ -24,7 +24,7 @@ def extract_text_from_file(file):
             return None, f"Unsupported file format: {ext}"
         return text, None
 
-# Call Groq API
+# Call Groq API using Mixtral model
 def call_groq(prompt):
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -76,32 +76,23 @@ def analyze():
 
     try:
         gpt_result = call_groq(prompt)
+
         print("\n===== FULL GPT OUTPUT =====\n", flush=True)
         print(gpt_result, flush=True)
         print("\n===== END =====\n", flush=True)
         print("📨 GPT Output:", gpt_result[:300], flush=True)
 
-        # --- Parsing ---
-        score_match = re.search(r"Match Score[:\-]?\s*(\d+)%", gpt_result, re.IGNORECASE)
-        summary_match = re.search(r"Custom Summary[:\-]?\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
+        # 🧠 GPT Response Parsing
+        score_match = re.search(r"\*\*Resume Match Score:\s*(\d+)%\*\*", gpt_result, re.IGNORECASE)
+        summary_match = re.search(r"\*\*Custom Summary:\*\*\s*\n(.+)", gpt_result, re.IGNORECASE | re.DOTALL)
 
-        def extract_bullets(section_title):
-            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n|(?:\d+\..*?\n))+)"
+        def extract_bullets(title):
+            pattern = rf"\*\*{title}:\*\*\s*\n((?:\* .+\n)+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
             if not match:
                 return []
             lines = match.group(1).strip().splitlines()
-            items = []
-            for line in lines:
-                # Fix: Strip both dash and numbered bullets like "1. "
-                line = re.sub(r"^[-*•\d\.]+\s*", "", line).strip()
-                if ":" in line:
-                    _, values = line.split(":", 1)
-                    values = [v.strip() for v in values.split(",") if v.strip()]
-                    items.extend(values)
-                else:
-                    items.append(line)
-            return items
+            return [re.sub(r"^\*\s*", "", line).strip() for line in lines]
 
         skills = extract_bullets("Key Skills Present")
         missing_skills = extract_bullets("Missing Skills")
