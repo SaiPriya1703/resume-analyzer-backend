@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from auth import auth_bp
 from gpt_analyzer import gpt_bp
+from flask_bcrypt import Bcrypt
 import os
 import sys
 
