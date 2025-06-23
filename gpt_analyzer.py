@@ -3,11 +3,10 @@ import tempfile
 import requests
 import docx2txt
 import PyPDF2
-import json
 import re
+import json
 from flask import Blueprint, request, jsonify
 
-# Blueprint setup
 gpt_bp = Blueprint('gpt_bp', __name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -48,9 +47,9 @@ def call_groq(prompt):
 
 @gpt_bp.route('/analyze', methods=['POST'])
 def analyze():
-    print("\U0001F6A8 DEBUG: HEADERS =>", dict(request.headers), flush=True)
-    print("\ud83d\udcc2 DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
-    print("\ud83d\udccb DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
+    print("DEBUG: HEADERS =>", dict(request.headers), flush=True)
+    print("DEBUG: FILE KEYS =>", list(request.files.keys()), flush=True)
+    print("DEBUG: FORM KEYS =>", list(request.form.keys()), flush=True)
 
     resume = request.files.get('resume')
     job_description = request.form.get('job_description', '')
@@ -62,43 +61,60 @@ def analyze():
     if err:
         return jsonify({"error": err}), 400
 
+    # Ask GPT to give valid JSON output
     prompt = f"""
+    You are an AI Resume Analyzer. Compare the resume with the job description and return a JSON object with the following fields only:
+
+    {{
+      "score": <integer from 0 to 100>,
+      "skills": [list of key skills present in resume],
+      "missing_skills": [list of important skills missing from resume],
+      "suggestions": [list of suggestions to improve the resume],
+      "summary": "<2-3 line summary of the candidate>"
+    }}
+
     Resume:
     {resume_text}
 
     Job Description:
     {job_description}
 
-    Provide response only as raw JSON without markdown formatting:
-    {{
-      "score": number (0-100),
-      "skills": ["skill1", "skill2", ...],
-      "missing_skills": ["skill1", "skill2", ...],
-      "suggestions": ["tip1", "tip2", ...],
-      "summary": "2-3 sentence summary"
-    }}
+    Please respond only with the JSON output.
     """
 
     try:
-        gpt_response = call_groq(prompt)
+        gpt_result = call_groq(prompt)
 
-        print("\n===== FULL GPT OUTPUT =====\n")
-        print(gpt_response)
-        print("\n===== END =====\n")
+        # Debug log full GPT response
+        print("\n===== FULL GPT OUTPUT =====\n", flush=True)
+        print(gpt_result, flush=True)
+        print("\n===== END =====\n", flush=True)
 
-        # Remove ```json and ``` wrappers if present
-        cleaned_json = re.sub(r"^```json|```$", "", gpt_response.strip(), flags=re.MULTILINE).strip()
+        # Clean up triple quotes or code block marks if they exist
+        gpt_result_clean = re.sub(r"^```json|```$", "", gpt_result.strip(), flags=re.MULTILINE).strip()
 
-        result = json.loads(cleaned_json)
+        parsed = json.loads(gpt_result_clean)
+
+        score = parsed.get("score", 0)
+        skills = parsed.get("skills", [])
+        missing_skills = parsed.get("missing_skills", [])
+        suggestions = parsed.get("suggestions", [])
+        summary = parsed.get("summary", "")
+
+        print("DEBUG: Parsed Score:", score, flush=True)
+        print("DEBUG: Skills:", skills, flush=True)
+        print("DEBUG: Missing Skills:", missing_skills, flush=True)
+        print("DEBUG: Suggestions:", suggestions, flush=True)
+        print("DEBUG: Summary:", summary, flush=True)
 
         return jsonify({
-            "score": result.get("score", 0),
-            "skills": result.get("skills", []),
-            "missing_skills": result.get("missing_skills", []),
-            "suggestions": result.get("suggestions", []),
-            "summary": result.get("summary", "")
+            "score": score,
+            "skills": skills,
+            "missing_skills": missing_skills,
+            "suggestions": suggestions,
+            "summary": summary
         })
 
     except Exception as e:
-        print("\u274c Error parsing GPT JSON:", e, flush=True)
+        print("ERROR in analyze():", str(e), flush=True)
         return jsonify({"error": str(e)}), 500
