@@ -84,33 +84,32 @@ def analyze():
 
         # Extract bullet lists
         def extract_bullets(section_title):
-            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n)+)"
+            pattern = rf"{section_title}[:\-]?\s*\n((?:[-*•] .*?\n?)+)"
             match = re.search(pattern, gpt_result, re.IGNORECASE)
             if not match:
                 return []
-            
+
             lines = match.group(1).strip().splitlines()
-            extracted = []
+            result = []
+
             for line in lines:
-                line = re.sub(r"^[-*•]\s*", "", line).strip()  # remove bullet
+                line = re.sub(r"^[-*•]\s*", "", line).strip()
                 if ":" in line:
-                    key, values = line.split(":", 1)
-                    for item in values.split(","):
-                        cleaned = item.strip()
-                        if cleaned:
-                            extracted.append(cleaned)
+                    _, values = line.split(":", 1)
+                    result.extend([item.strip() for item in values.split(",") if item.strip()])
                 else:
-                    extracted.append(line)
-        return extracted
+                    result.append(line)
 
+            return result
 
+        # Final extracted fields
         skills = extract_bullets("Key Skills Present")
         missing_skills = extract_bullets("Missing Skills")
         suggestions = extract_bullets("Suggestions to Improve Resume")
         score = int(score_match.group(1)) if score_match else 0
         summary = summary_match.group(1).strip() if summary_match else ""
 
-        # --- Logs ---
+        # Logs
         print("✅ Parsed Score:", score, flush=True)
         print("✅ Extracted Skills:", skills, flush=True)
         print("✅ Missing Skills:", missing_skills, flush=True)
