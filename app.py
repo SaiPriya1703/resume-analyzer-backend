@@ -10,7 +10,7 @@ import sys
 app = Flask(__name__)
 
 # ✅ Proper CORS config for frontend (localhost or deployed)
-CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], supports_credentials=True)
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 bcrypt = Bcrypt(app)
 
 # ✅ JSON support (important for Content-Type: application/json)
