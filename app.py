@@ -10,7 +10,8 @@ import sys
 app = Flask(__name__)
 
 # ✅ Proper CORS config for frontend (localhost or deployed)
-CORS(app, origins=["http://localhost:3000", "https://resumeanalyzerfrontend.vercel.app"])
+CORS(app, origins=["https://resumeanalyzerfrontend.vercel.app"])
+
 bcrypt = Bcrypt(app)
 
 # ✅ JSON support (important for Content-Type: application/json)
